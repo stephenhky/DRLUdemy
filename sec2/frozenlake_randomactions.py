@@ -7,6 +7,7 @@ nbtrials = 1000
 nbsuccess = 0
 
 for _ in range(nbtrials):
+    print('======')
     env.reset()
     done = False
     while not done:

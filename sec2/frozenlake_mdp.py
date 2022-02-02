@@ -47,6 +47,8 @@ for _ in range(nbtrials):
         env.render()
         action = mypolicy(env)
         observation, reward, done, info = env.step(action)
+
+    env.render()
     if reward > 0:
         nbsuccess += 1
 
