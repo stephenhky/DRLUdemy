@@ -11,6 +11,7 @@ for _ in range(nbtrials):
     done = False
     while not done:
         env.render()
+        print(env.s)  # print state
         action = env.action_space.sample()
         observation, reward, done, info = env.step(action)
     if reward > 0:
