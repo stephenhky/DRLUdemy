@@ -55,21 +55,25 @@ class Agent:
     def reset(self):
         nbstates = self.env.observation_space.n
         nbactions = self.env.action_space.n
-        self.Q = np.random.uniform((nbstates, nbactions))
+        self.Q = np.random.uniform(size=(nbstates, nbactions))
         self.env.reset()
         self.epsilon = self.maxepsilon
         self.s = env.s
 
     def next_step(self):
+        nbactions = self.env.action_space.n
         if np.random.uniform() > self.epsilon:
             a = np.argmax(self.Q, axis=1)
         else:
-            a = np.random.randint(self.nbactions)
+            a = np.random.randint(nbactions)
 
-        observation, reward, done, info = self.env(a)
+        observation, reward, done, info = self.env.step(a)
         self.Q[self.s, a] += self.alpha * (reward + self.gamma*np.max(self.Q[self.env.s, :]) - self.Q[self.s, a])
         self.s = self.env.s
         return observation, reward, done, info
+
+    def render(self):
+        self.env.render()
 
 
 env = gym.make('FrozenLake-v1')
