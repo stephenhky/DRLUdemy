@@ -13,25 +13,30 @@ from qlearning import Agent
 
 env = gym.make('FrozenLake-v1')
 agent = Agent(env)
-nbtrials = 500000
-sucesses = []
+nbtrials = 1000000
+scores = []
 successrates = []
 
 for i in tqdm(range(nbtrials)):
     agent.reset()
     done = False
+    score = 0
     while not done:
         # agent.render()
         action = agent.choose_action()
         observation, reward, done, info = agent.next_step(action)
+        score += reward
 
-    # agent.env.render()
-    sucesses.append(reward > 0)
+    scores.append(score)
 
     if i % 100 == 0:
-        successrates.append(sum(sucesses[-100:])/100)
+        successrates.append(sum(scores[-100:]) / 100)
+    if i % 1000 == 0:
+        print('i: {}; win pct: {:.02f}; epsilon: {}'.format(i, successrates[-1], agent.epsilon))
 
 env.close()
+
+# print(successrates)
 
 plt.plot(np.arange(len(successrates)), np.array(successrates))
 plt.savefig('tdlearningsuccess.png')
