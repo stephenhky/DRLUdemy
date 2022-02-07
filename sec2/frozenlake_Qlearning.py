@@ -13,7 +13,7 @@ from qlearning import Agent
 
 env = gym.make('FrozenLake-v1')
 agent = Agent(env)
-nbtrials = 1000000
+nbtrials = 5000000
 scores = []
 successrates = []
 
@@ -29,9 +29,9 @@ for i in tqdm(range(nbtrials)):
 
     scores.append(score)
 
-    if i % 100 == 0:
-        successrates.append(sum(scores[-100:]) / 100)
     if i % 1000 == 0:
+        successrates.append(np.mean(scores[-1000:]))
+    if i % 5000 == 0:
         print('i: {}; win pct: {:.02f}; epsilon: {}'.format(i, successrates[-1], agent.epsilon))
 
 env.close()
