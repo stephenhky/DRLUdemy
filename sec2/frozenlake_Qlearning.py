@@ -28,8 +28,8 @@ for i in tqdm(range(nbtrials)):
         score += reward
     scores.append(score)
 
-    if i % 1000 == 0:
-        successrates.append(np.sum(scores[-1000:])/1000)
+    if i % 100 == 0:
+        successrates.append(np.sum(scores[-100:])/100)
     if i % 5000 == 0:
         print('i: {}; win pct: {:.02f}; epsilon: {}'.format(i, successrates[-1], agent.epsilon))
 
