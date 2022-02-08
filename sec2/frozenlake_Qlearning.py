@@ -26,12 +26,10 @@ for i in tqdm(range(nbtrials)):
         action = agent.choose_action()
         observation, reward, done, info = agent.next_step(action)
         score += reward
-    if score > 0.0:
-        print(score)
     scores.append(score)
 
     if i % 1000 == 0:
-        successrates.append(np.mean(scores[-1000:]))
+        successrates.append(np.sum(scores[-1000:])/1000)
     if i % 5000 == 0:
         print('i: {}; win pct: {:.02f}; epsilon: {}'.format(i, successrates[-1], agent.epsilon))
 
