@@ -26,7 +26,7 @@ for i in tqdm(range(nbtrials)):
         action = agent.choose_action()
         observation, reward, done, info = agent.next_step(action)
         score += reward
-
+    print(score)
     scores.append(score)
 
     if i % 1000 == 0:
