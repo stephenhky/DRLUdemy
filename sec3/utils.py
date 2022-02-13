@@ -3,18 +3,23 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 
 
-class QNetwork(nn.Module):
-    def __init__(self, inputdim, nbactions, device=torch.device('cpu')):
-        super(QNetwork, self).__init__()
+class QLinearNetwork(nn.Module):
+    def __init__(self, inputdim, nbactions, lr=0.001, device=torch.device('cpu')):
+        super(QLinearNetwork, self).__init__()
 
         # construct neural network
         self.layer1 = nn.Linear(inputdim, 128)
-        self.act1 = nn.relu()
+        self.act1 = F.relu()
         self.layer2 = nn.Linear(128, nbactions)
         self.device = device
         self.to(self.device)
+
+        self.lr = lr
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        self.criterion = nn.MSELoss()
 
     def forward(self, x):
         y = self.layer1(x)
@@ -22,67 +27,75 @@ class QNetwork(nn.Module):
         y = self.layer2(y)
         return y
 
-def learn_qnetwork(qnetwork, x, y, lr=0.001, nbepochs=100, batchsize=10, device=torch.device('cpu')):
+def learn_qnetwork(qnetwork, x, y, nbepochs=100, batchsize=10, device=torch.device('cpu')):
     dataloader = DataLoader(
         torch.tensor([x, y]).to(device).t,
         batch_size=batchsize
     )
 
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(qnetwork.parameters(), lr=lr)
-
     for _ in range(nbepochs):
         for x, y_test in dataloader:
-            optimizer.zero_grad()
+            qnetwork.optimizer.zero_grad()
             y_pred = qnetwork(x)
-            loss = criterion(y_test, y_pred)
+            loss = qnetwork.criterion(y_test, y_pred)
             loss.backward()
-            optimizer.step()
+            qnetwork.optimizer.step()
 
 
-class Agent:
+# from OpenAI Gym environments to state space and action space
+get_gym_env_nbstates = lambda env: env.observation_space.n
+get_gym_env_nbactions = lambda env: env.action_space.n
+
+
+class QLinearAgent:
     def __init__(
             self,
-            env,
+            nbstates,
+            nbactions,
             alpha=0.001,
-            gamma=0.9,
+            gamma=0.99,
             maxepsilon=1.0,
             minepsilon=0.01,
-            epsilon_exponential_decay=500
+            epsilon_dec=1e-5,
+            device=torch.device('cpu')
     ):
-        self.env = env
+        self.nbstates = nbstates
+        self.nbactions = nbactions
         self.alpha = alpha
         self.gamma = gamma
         self.maxepsilon = maxepsilon
         self.minepsilon = minepsilon
-        self.epsilon_exponential_decay = epsilon_exponential_decay
+        self.epsilon_dec = epsilon_dec
 
-        nbstates = self.env.observation_space.n
-        nbactions = self.env.action_space.n
-        self.Q = np.zeros((nbstates, nbactions))
         self.epsilon = self.maxepsilon
+        self.Q = QLinearNetwork(self.nbstates, nbactions, device=device)
 
-        self.reset()
-
-    def reset(self):
-        self.env.reset()
-        self.s = self.env.s
-
-    def choose_action(self):
-        nbactions = self.env.action_space.n
+    def choose_action(self, state):
         if np.random.uniform() > self.epsilon:
-            a = np.argmax(self.Q[self.s, :])
+            tstate = torch.Tensor(state)
+            predicted_action_tscores = self.Q(tstate)
+            a = torch.argmax(predicted_action_tscores).item()
         else:
-            a = np.random.randint(nbactions)
+            a = np.random.randint(self.nbactions)
         return a
 
-    def next_step(self, a):
-        observation, reward, done, info = self.env.step(a)
-        self.Q[self.s, a] += self.alpha * (reward + self.gamma*np.max(self.Q[self.env.s, :]) - self.Q[self.s, a])
-        self.s = self.env.s
-        self.epsilon = self.minepsilon + (self.epsilon-self.minepsilon)*np.exp(-1/self.epsilon_exponential_decay)
-        return observation, reward, done, info
+    def decrease_epsilon(self):
+        self.epsilon -= self.epsilon_dec if self.epsilon > self.minepsilon else self.minepsilon
 
-    def render(self):
-        self.env.render()
+    def learn(self, state, action, reward, newstate):
+        self.Q.optimizer.zero_grad()
+        tstate = torch.Tensor(state, dtype=torch.float).to(self.Q.device)
+        taction = torch.Tensor(action).to(self.Q.device)
+        treward = torch.Tensor(reward).to(self.Q.device)
+        tnewstate = torch.Tensor(newstate, dtype=torch.float).to(self.Q.device)
+
+        tqpred = self.Q(tstate)[taction]
+        tqnext = self.Q(tnewstate)
+        tqtarget = treward + self.gamma*tqnext
+
+        loss = self.Q.criterion(tqpred, tqtarget).to(self.Q.device)
+        loss.backward()
+        self.Q.optimizer.step()
+        self.decrease_epsilon()
+
 
