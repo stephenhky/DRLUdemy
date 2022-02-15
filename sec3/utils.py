@@ -12,7 +12,6 @@ class QLinearNetwork(nn.Module):
 
         # construct neural network
         self.layer1 = nn.Linear(inputdim, 128)
-        self.act1 = F.relu()
         self.layer2 = nn.Linear(128, nbactions)
         self.device = device
         self.to(self.device)
@@ -23,7 +22,7 @@ class QLinearNetwork(nn.Module):
 
     def forward(self, x):
         y = self.layer1(x)
-        y = self.act1(y)
+        y = F.relu(y)
         y = self.layer2(y)
         return y
 
@@ -57,6 +56,7 @@ class QLinearAgent:
             maxepsilon=1.0,
             minepsilon=0.01,
             epsilon_dec=1e-5,
+            lr=0.001,
             device=torch.device('cpu')
     ):
         self.nbstates = nbstates
@@ -68,7 +68,7 @@ class QLinearAgent:
         self.epsilon_dec = epsilon_dec
 
         self.epsilon = self.maxepsilon
-        self.Q = QLinearNetwork(self.nbstates, nbactions, device=device)
+        self.Q = QLinearNetwork(self.nbstates, self.nbactions, lr, device=device)
 
     def choose_action(self, state):
         if np.random.uniform() > self.epsilon:
@@ -84,10 +84,10 @@ class QLinearAgent:
 
     def learn(self, state, action, reward, newstate):
         self.Q.optimizer.zero_grad()
-        tstate = torch.Tensor(state, dtype=torch.float).to(self.Q.device)
-        taction = torch.Tensor(action).to(self.Q.device)
-        treward = torch.Tensor(reward).to(self.Q.device)
-        tnewstate = torch.Tensor(newstate, dtype=torch.float).to(self.Q.device)
+        tstate = torch.tensor(state, dtype=torch.float).to(self.Q.device)
+        taction = torch.tensor(action).to(self.Q.device)
+        treward = torch.tensor(reward).to(self.Q.device)
+        tnewstate = torch.tensor(newstate, dtype=torch.float).to(self.Q.device)
 
         tqpred = self.Q(tstate)[taction]
         tqnext = self.Q(tnewstate)
